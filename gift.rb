@@ -76,7 +76,11 @@ end
 #---------------------------------------------------------------------------------------------
 def make_rule_gift order, gift_groups, goods_by_rule, percentage
   gift_hash = goods_by_rule.each_with_object({}){|r, h|h[r] = 1}
-  gift_hash[:gift] = (($goods["A"][:price] + $goods["B"][:price]) * percentage).round(2)
+  good_prices = 0
+  goods_by_rule.each do |good_name|
+    good_prices += $goods[good_name][:price]
+  end
+  gift_hash[:gift] = (good_prices * percentage).round(2)
   gift_groups << gift_hash
   goods_by_rule.each do |good_name|
     order[good_name] -= 1
@@ -163,7 +167,11 @@ orders.each do |order_name, order|
   end
   puts "================= #{'Total'.center(17)} =================".yellow
   grand_total = order.each_with_object([]){|(key, value), gt| gt << $goods[key][:price] * value}.inject{|sum,x| sum + x }.round(2)
-  puts "Grand_total: #{sprintf('%.2f', grand_total)}".rjust(53)
+  puts "Total (without gifts): #{sprintf('%.2f', grand_total)}".rjust(53)
+  gift_total = gift_groups.map{|x|x[:gift]}.inject{|sum,x| sum + x }.round(2)
+  puts "Gift total: #{sprintf('%.2f', gift_total)}".rjust(53).green
+  puts "Grand total: #{sprintf('%.2f', grand_total - gift_total)}".rjust(53).yellow
+
   puts "\n\n"
 end
 
