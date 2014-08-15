@@ -1,30 +1,43 @@
 require 'colorize'
 
 #---------------------------------------------------------------------------------------------
+def check_rule order, goods_arr_rules
+  rule_result = 0
+  goods_arr_rules.each do |rule|
+    rule_result = 1
+    rule.each do |good_name|
+      rule_result *= order[good_name].exists? ? 1 : 0
+    end
+    break if rule_result == 1
+  end
+  rule_result == 1
+end
+
+#---------------------------------------------------------------------------------------------
 def pop_good_groups_by_rules order, gift_groups
 
   order_original = order.clone
 
   # 1. Если одновременно выбраны А и B, то их суммарная стоимость уменьшается на 10% (для каждой пары А и B)
-  if order["A"].exists? && order["B"].exists?
+  if check_rule order, [["A", "B"]]
     make_rule_gift order, gift_groups, ["A", "B"], 0.1
     return
   end
 
   # 2. Если одновременно выбраны D и E, то их суммарная стоимость уменьшается на 5% (для каждой пары D и E)
-  if order["D"].exists? && order["E"].exists?
+  if check_rule order, [["D", "E"]]
     make_rule_gift order, gift_groups, ["D", "E"], 0.05
     return
   end
 
   # 3. Если одновременно выбраны E,F,G, то их суммарная стоимость уменьшается на 5% (для каждой тройки E,F,G)
-  if order["E"].exists? && order["F"].exists? && order["G"].exists?
+  if check_rule order, [["E", "F", "G"]]
     make_rule_gift order, gift_groups, ["E", "F", "G"], 0.05
     return
   end
 
   # 4. Если одновременно выбраны А и один из [K,L,M], то стоимость выбранного продукта уменьшается на 5%
-  if order["A"].exists? && (order["K"].exists? || order["L"].exists? || order["M"].exists?)
+  if check_rule order, [["A", "K"], ["A", "L"], ["A", "M"]]
     if order["K"].exists?
       make_rule_gift order, gift_groups, ["A", "K"], 0.05
     elsif order["L"].exists?
