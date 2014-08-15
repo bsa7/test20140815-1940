@@ -1,5 +1,6 @@
 require 'colorize'
 
+#----------------------------------------------------------------------------------------------------
 #- Проверяет исполнение правила. Правило описано в 2-х мерном массиве. 1-й уровень: OR, 2-й - AND ---
 def check_rule order, goods_arr_rules
   rule_result = 0
@@ -13,41 +14,48 @@ def check_rule order, goods_arr_rules
   rule_result == 1
 end
 
-#---------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------
+#- Итерирует по правилам, последовательно применяя их к ордеру. Товары, участвовавшие в скидке -
+#  отбрасываются и не участвуют следующей итерации
 def pop_good_groups_by_rules order, gift_groups
 
-  gift_maked = false
+  gift_maked = false #10. Каждый товар может участвовать только в одной скидке. Скидки применяются последовательно в порядке описанном выше.
 
   $rules.each do |rule|
     if rule[:goods]
       rule[:goods].each do |goods_set|
         if check_rule order, [goods_set]
           make_rule_gift order, gift_groups, goods_set, rule[:percentage]
+#          puts rule.inspect.magenta
           gift_maked = true
           break
         end
       end
     elsif rule[:quantity]
-      total_quantity = 0
       total_cost = 0
+      total_quantity = 0
       total_gift = {}
       order.each do |good_name, quantity|
         if quantity > 0 && (!rule[:exclude] || (rule[:exclude] && !rule[:exclude].include?(good_name)))
-          #### 9. Продукты A и C не участвуют в скидках 5,6,7
+          # 9. Продукты A и C не участвуют в скидках 5,6,7
           total_quantity += quantity
           total_cost += quantity * $goods[good_name][:price]
           total_gift[good_name] = quantity
         end
       end
-      if rule[:quantity] === total_quantity
+      if total_quantity >= 0 && rule[:quantity] === total_quantity
+#        puts "total_quantity = #{total_quantity}, rule[:quantity] = #{rule[:quantity]}".green
+#        puts total_gift.inspect.yellow
+#        puts order.inspect.cyan
         make_quantity_gift order, gift_groups, total_gift, total_cost, rule[:percentage]
+#        puts order.inspect
+#        puts rule.inspect.magenta
         gift_maked = true
         break
       end
     end
     #### 8. Описанные скидки 5,6,7 не суммируются, применяется только одна из них
-    ####10. Каждый товар может участвовать только в одной скидке. Скидки применяются последовательно в порядке описанном выше.
-    break if gift_maked
+    break if gift_maked #10. Каждый товар может участвовать только в одной скидке. Скидки применяются последовательно в порядке описанном выше.
   end
 
 end
@@ -164,7 +172,7 @@ orders.each do |order_name, order|
       if key == :gift
         puts "Gift: #{value}".rjust(53).green
       else
-        order_stub[key] -= 1
+        order_stub[key] -= value
         puts order_string(key, value, $goods[key][:price])
       end
     end
