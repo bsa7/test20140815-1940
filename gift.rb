@@ -1,6 +1,6 @@
 require 'colorize'
 
-#---------------------------------------------------------------------------------------------
+#- Проверяет исполнение правила. Правило описано в 2-х мерном массиве. 1-й уровень: OR, 2-й - AND ---
 def check_rule order, goods_arr_rules
   rule_result = 0
   goods_arr_rules.each do |rule|
@@ -16,71 +16,46 @@ end
 #---------------------------------------------------------------------------------------------
 def pop_good_groups_by_rules order, gift_groups
 
-  order_original = order.clone
+  gift_maked = false
 
-  # 1. Если одновременно выбраны А и B, то их суммарная стоимость уменьшается на 10% (для каждой пары А и B)
-  if check_rule order, [["A", "B"]]
-    make_rule_gift order, gift_groups, ["A", "B"], 0.1
-    return
-  end
-
-  # 2. Если одновременно выбраны D и E, то их суммарная стоимость уменьшается на 5% (для каждой пары D и E)
-  if check_rule order, [["D", "E"]]
-    make_rule_gift order, gift_groups, ["D", "E"], 0.05
-    return
-  end
-
-  # 3. Если одновременно выбраны E,F,G, то их суммарная стоимость уменьшается на 5% (для каждой тройки E,F,G)
-  if check_rule order, [["E", "F", "G"]]
-    make_rule_gift order, gift_groups, ["E", "F", "G"], 0.05
-    return
-  end
-
-  # 4. Если одновременно выбраны А и один из [K,L,M], то стоимость выбранного продукта уменьшается на 5%
-  if check_rule order, [["A", "K"], ["A", "L"], ["A", "M"]]
-    if order["K"].exists?
-      make_rule_gift order, gift_groups, ["A", "K"], 0.05
-    elsif order["L"].exists?
-      make_rule_gift order, gift_groups, ["A", "L"], 0.05
-    elsif order["M"].exists?
-      make_rule_gift order, gift_groups, ["A", "M"], 0.05
+  $rules.each do |rule|
+    if rule[:goods]
+      rule[:goods].each do |goods_set|
+        if check_rule order, [goods_set]
+          make_rule_gift order, gift_groups, goods_set, rule[:percentage]
+          gift_maked = true
+          break
+        end
+      end
+    elsif rule[:quantity]
+      total_quantity = 0
+      total_cost = 0
+      total_gift = {}
+      order.each do |good_name, quantity|
+        if quantity > 0 && (!rule[:exclude] || (rule[:exclude] && !rule[:exclude].include?(good_name)))
+          #### 9. Продукты A и C не участвуют в скидках 5,6,7
+          total_quantity += quantity
+          total_cost += quantity * $goods[good_name][:price]
+          total_gift[good_name] = quantity
+        end
+      end
+      if rule[:quantity] === total_quantity
+        make_quantity_gift order, gift_groups, total_gift, total_cost, rule[:percentage]
+        gift_maked = true
+        break
+      end
     end
-    return
+    #### 8. Описанные скидки 5,6,7 не суммируются, применяется только одна из них
+    ####10. Каждый товар может участвовать только в одной скидке. Скидки применяются последовательно в порядке описанном выше.
+    break if gift_maked
   end
 
-  total_count = 0
-  total_cost = 0
-  total_gift = {}
-  order.each do |good_name, count|
-    #### 9. Продукты A и C не участвуют в скидках 5,6,7
-    unless ["A","C"].include?(good_name) || count <= 0
-      total_count += count
-      total_cost += count * $goods[good_name][:price]
-      total_gift[good_name] = count
-    end
-  end
-
-  # 5. Если пользователь выбрал одновременно 3 продукта, он получает скидку 5% от суммы заказа
-  if total_count == 3
-    make_count_gift order, gift_groups, total_gift, total_cost, 0.05
-
-  # 6. Если пользователь выбрал одновременно 4 продукта, он получает скидку 10% от суммы заказа
-  elsif total_count == 4
-    make_count_gift order, gift_groups, total_gift, total_cost, 0.1
-
-  # 7. Если пользователь выбрал одновременно 5 продуктов, он получает скидку 20% от суммы заказа
-  elsif total_count >= 5
-    make_count_gift order, gift_groups, total_gift, total_cost, 0.2
-  end
-
-  #### 8. Описанные скидки 5,6,7 не суммируются, применяется только одна из них
-  ####10. Каждый товар может участвовать только в одной скидке. Скидки применяются последовательно в порядке описанном выше.
 end
 
 #---------------------------------------------------------------------------------------------
-def make_count_gift(order, gift_groups, total_gift, total_cost, percentage)
-  total_gift.each do |good_name, count|
-    order[good_name] -= count
+def make_quantity_gift(order, gift_groups, total_gift, total_cost, percentage)
+  total_gift.each do |good_name, quantity|
+    order[good_name] -= quantity
   end
   total_gift[:gift] = (total_cost * percentage).round(2)
   gift_groups << total_gift
@@ -128,6 +103,24 @@ end
 
 
 #---------------------------------------------------------------------------------------------------------------------------------------
+$rules = [
+  # 1. Если одновременно выбраны А и B, то их суммарная стоимость уменьшается на 10% (для каждой пары А и B)
+  {goods: [["A", "B"]], percentage: 0.1},
+  # 2. Если одновременно выбраны D и E, то их суммарная стоимость уменьшается на 5% (для каждой пары D и E)
+  {goods: [["D", "E"]], percentage: 0.05},
+  # 3. Если одновременно выбраны E,F,G, то их суммарная стоимость уменьшается на 5% (для каждой тройки E,F,G)
+  {goods: [["E", "F", "G"]], percentage: 0.05},
+  # 4. Если одновременно выбраны А и один из [K,L,M], то стоимость выбранного продукта уменьшается на 5%
+  {goods: [["A", "K"], ["A", "L"], ["A", "M"]], percentage: 0.05},
+  # 5. Если пользователь выбрал одновременно 3 продукта, он получает скидку 5% от суммы заказа
+  {quantity: (3..3), exclude: ["A", "C"], percentage: 0.05},
+  # 6. Если пользователь выбрал одновременно 4 продукта, он получает скидку 10% от суммы заказа
+  {quantity: (4..4), exclude: ["A", "C"], percentage: 0.1},
+  # 7. Если пользователь выбрал одновременно 5 продуктов, он получает скидку 20% от суммы заказа
+  {quantity: (5..Float::INFINITY), exclude: ["A", "C"], percentage: 0.2}
+  #### 9. Продукты A и C не участвуют в скидках 5,6,7
+]
+
 $goods = {
  "A" => {price: 10.11},
  "B" => {price: 11.12},
@@ -160,6 +153,8 @@ orders.each do |order_name, order|
     pop_good_groups_by_rules order_stub, gift_groups
     break if order_backup == order_stub
   end
+
+#  puts order.inspect.magenta
 
   puts "================= #{order_name.center(17)} =================".yellow
   puts "Good description | Quantity | Unit Price | Line Total"
