@@ -44,12 +44,7 @@ def pop_good_groups_by_rules order, gift_groups
         end
       end
       if total_quantity >= 0 && rule[:quantity] === total_quantity
-#        puts "total_quantity = #{total_quantity}, rule[:quantity] = #{rule[:quantity]}".green
-#        puts total_gift.inspect.yellow
-#        puts order.inspect.cyan
         make_quantity_gift order, gift_groups, total_gift, total_cost, rule[:percentage]
-#        puts order.inspect
-#        puts rule.inspect.magenta
         gift_maked = true
         break
       end
@@ -65,7 +60,7 @@ def make_quantity_gift(order, gift_groups, total_gift, total_cost, percentage)
   total_gift.each do |good_name, quantity|
     order[good_name] -= quantity
   end
-  total_gift[:gift] = (total_cost * percentage).round(2)
+  total_gift[:gift] = {total: (total_cost * percentage).round(2), percentage: percentage}
   gift_groups << total_gift
 end
 
@@ -76,7 +71,7 @@ def make_rule_gift order, gift_groups, goods_by_rule, percentage
   goods_by_rule.each do |good_name|
     good_prices += $goods[good_name][:price]
   end
-  gift_hash[:gift] = (good_prices * percentage).round(2)
+  gift_hash[:gift] = {total: (good_prices * percentage).round(2), percentage: percentage}
   gift_groups << gift_hash
   goods_by_rule.each do |good_name|
     order[good_name] -= 1
@@ -170,7 +165,7 @@ orders.each do |order_name, order|
   gift_groups.each do |gift|
     gift.each do |key, value|
       if key == :gift
-        puts "Gift: #{value}".rjust(53).green
+        puts "Gift (#{value[:percentage]*100}%): #{value[:total]}".rjust(53).green
       else
         order_stub[key] -= value
         puts order_string(key, value, $goods[key][:price])
@@ -184,7 +179,7 @@ orders.each do |order_name, order|
   puts "================= #{'Total'.center(17)} =================".yellow
   grand_total = order.each_with_object([]){|(key, value), gt| gt << $goods[key][:price] * value}.inject{|sum,x| sum + x }.round(2)
   puts "Total (without gifts): #{sprintf('%.2f', grand_total)}".rjust(53)
-  gift_total = gift_groups.map{|x|x[:gift]}.inject{|sum,x| sum + x }.round(2)
+  gift_total = gift_groups.map{|x|x[:gift][:total]}.inject{|sum,x| sum + x }.round(2)
   puts "Gift total: #{sprintf('%.2f', gift_total)}".rjust(53).green
   puts "Grand total: #{sprintf('%.2f', grand_total - gift_total)}".rjust(53).yellow
 
